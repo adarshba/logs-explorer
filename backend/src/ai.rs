@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_openai::{
+    config::{AzureConfig, OpenAIConfig},
     types::{
         ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
         ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
@@ -11,26 +12,145 @@ use tracing::{debug, info};
 
 use crate::models::{DebugAnalysis, DebugContext, LogEntry, SearchParams};
 
+/// AI Provider type
+#[derive(Debug, Clone)]
+pub enum AIProvider {
+    OpenAI,
+    AzureOpenAI,
+}
+
+/// AI Engine that supports multiple providers
 pub struct AIEngine {
-    client: Client<async_openai::config::OpenAIConfig>,
+    provider: AIProvider,
+    client_openai: Option<Client<OpenAIConfig>>,
+    client_azure: Option<Client<AzureConfig>>,
     model: String,
 }
 
 impl AIEngine {
-    pub fn new(api_key: String, model: Option<String>) -> Result<Self> {
-        let config = async_openai::config::OpenAIConfig::new().with_api_key(api_key);
+    /// Create a new AI Engine with OpenAI
+    pub fn new_openai(api_key: String, model: Option<String>) -> Result<Self> {
+        let config = OpenAIConfig::new().with_api_key(api_key);
         let client = Client::with_config(config);
         let model = model.unwrap_or_else(|| "gpt-4o-mini".to_string());
 
-        info!("AI Engine initialized with model: {}", model);
-        Ok(Self { client, model })
+        info!("AI Engine initialized with OpenAI, model: {}", model);
+        Ok(Self {
+            provider: AIProvider::OpenAI,
+            client_openai: Some(client),
+            client_azure: None,
+            model,
+        })
     }
 
+    /// Create a new AI Engine with Azure OpenAI
+    pub fn new_azure(
+        api_key: String,
+        endpoint: String,
+        deployment: String,
+        api_version: Option<String>,
+    ) -> Result<Self> {
+        let mut config = AzureConfig::new()
+            .with_api_key(api_key)
+            .with_deployment_id(deployment.clone())
+            .with_api_base(endpoint);
+
+        if let Some(version) = api_version {
+            config = config.with_api_version(version);
+        }
+
+        let client = Client::with_config(config);
+
+        info!(
+            "AI Engine initialized with Azure OpenAI, deployment: {}",
+            deployment
+        );
+        Ok(Self {
+            provider: AIProvider::AzureOpenAI,
+            client_openai: None,
+            client_azure: Some(client),
+            model: deployment,
+        })
+    }
+
+    /// Create AI Engine from environment variables
     pub fn new_from_env() -> Result<Self> {
-        let api_key = std::env::var("OPENAI_API_KEY")
-            .map_err(|_| anyhow::anyhow!("OPENAI_API_KEY environment variable not set"))?;
-        let model = std::env::var("OPENAI_MODEL").ok();
-        Self::new(api_key, model)
+        let provider = std::env::var("AI_PROVIDER")
+            .unwrap_or_else(|_| "openai".to_string())
+            .to_lowercase();
+
+        match provider.as_str() {
+            "azure-openai" | "azure" => {
+                let api_key = std::env::var("AZURE_OPENAI_API_KEY").map_err(|_| {
+                    anyhow::anyhow!("AZURE_OPENAI_API_KEY environment variable not set")
+                })?;
+                let endpoint = std::env::var("AZURE_OPENAI_ENDPOINT").map_err(|_| {
+                    anyhow::anyhow!("AZURE_OPENAI_ENDPOINT environment variable not set")
+                })?;
+                let deployment = std::env::var("AZURE_OPENAI_DEPLOYMENT")
+                    .or_else(|_| std::env::var("AI_MODEL"))
+                    .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+                let api_version = std::env::var("AZURE_OPENAI_API_VERSION").ok();
+
+                Self::new_azure(api_key, endpoint, deployment, api_version)
+            }
+            "openai" | _ => {
+                let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| {
+                    anyhow::anyhow!("OPENAI_API_KEY environment variable not set")
+                })?;
+                let model = std::env::var("OPENAI_MODEL")
+                    .or_else(|_| std::env::var("AI_MODEL"))
+                    .ok();
+                Self::new_openai(api_key, model)
+            }
+        }
+    }
+
+    /// Get the chat client for making API calls
+    async fn create_chat_completion(
+        &self,
+        messages: Vec<ChatCompletionRequestMessage>,
+        temperature: f32,
+        max_tokens: Option<u16>,
+    ) -> Result<String> {
+        let request = match max_tokens {
+            Some(tokens) => CreateChatCompletionRequestArgs::default()
+                .model(&self.model)
+                .messages(messages)
+                .temperature(temperature)
+                .max_tokens(tokens)
+                .build()?,
+            None => CreateChatCompletionRequestArgs::default()
+                .model(&self.model)
+                .messages(messages)
+                .temperature(temperature)
+                .build()?,
+        };
+
+        let response = match &self.provider {
+            AIProvider::OpenAI => {
+                self.client_openai
+                    .as_ref()
+                    .expect("OpenAI client not initialized")
+                    .chat()
+                    .create(request)
+                    .await?
+            }
+            AIProvider::AzureOpenAI => {
+                self.client_azure
+                    .as_ref()
+                    .expect("Azure client not initialized")
+                    .chat()
+                    .create(request)
+                    .await?
+            }
+        };
+
+        Ok(response.choices[0]
+            .message
+            .content
+            .clone()
+            .unwrap_or_else(|| "No response from AI".to_string()))
     }
 
     pub async fn parse_query(&self, query: &str) -> Result<SearchParams> {
@@ -68,22 +188,10 @@ Examples:
             ),
         ];
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(&self.model)
-            .messages(messages)
-            .temperature(0.3)
-            .build()?;
-
-        let response = self.client.chat().create(request).await?;
-
-        let content = response.choices[0]
-            .message
-            .content
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("No response from AI"))?;
+        let content = self.create_chat_completion(messages, 0.3, None).await?;
 
         // Parse JSON response
-        let parsed: serde_json::Value = serde_json::from_str(content)
+        let parsed: serde_json::Value = serde_json::from_str(&content)
             .unwrap_or_else(|_| serde_json::json!({
                 "query": query,
                 "time_range": "1h",
@@ -130,20 +238,7 @@ Examples:
             ),
         ];
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(&self.model)
-            .messages(messages)
-            .temperature(0.5)
-            .max_tokens(1500u16)
-            .build()?;
-
-        let response = self.client.chat().create(request).await?;
-
-        Ok(response.choices[0]
-            .message
-            .content
-            .clone()
-            .unwrap_or_else(|| "Unable to analyze logs".to_string()))
+        self.create_chat_completion(messages, 0.5, Some(1500)).await
     }
 
     pub async fn create_debug_query(
@@ -190,21 +285,9 @@ Respond in JSON format:
             ),
         ];
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(&self.model)
-            .messages(messages)
-            .temperature(0.3)
-            .build()?;
+        let content = self.create_chat_completion(messages, 0.3, None).await?;
 
-        let response = self.client.chat().create(request).await?;
-
-        let content = response.choices[0]
-            .message
-            .content
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("No response from AI"))?;
-
-        let parsed: serde_json::Value = serde_json::from_str(content)
+        let parsed: serde_json::Value = serde_json::from_str(&content)
             .unwrap_or_else(|_| serde_json::json!({
                 "query": issue,
                 "time_range": context.time_range.clone().unwrap_or_else(|| "1h".to_string()),
@@ -289,24 +372,11 @@ Respond in JSON format:
             ),
         ];
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(&self.model)
-            .messages(messages)
-            .temperature(0.4)
-            .max_tokens(2000u16)
-            .build()?;
+        let content = self.create_chat_completion(messages, 0.4, Some(2000)).await?;
 
-        let response = self.client.chat().create(request).await?;
-
-        let content = response.choices[0]
-            .message
-            .content
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("No response from AI"))?;
-
-        let parsed: serde_json::Value = serde_json::from_str(content)
+        let parsed: serde_json::Value = serde_json::from_str(&content)
             .unwrap_or_else(|_| serde_json::json!({
-                "analysis": content,
+                "analysis": &content,
                 "root_cause": null,
                 "recommendations": []
             }));
@@ -314,7 +384,7 @@ Respond in JSON format:
         Ok(DebugAnalysis {
             analysis: parsed["analysis"]
                 .as_str()
-                .unwrap_or(content)
+                .unwrap_or(&content)
                 .to_string(),
             root_cause: parsed["root_cause"]
                 .as_str()

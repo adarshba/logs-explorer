@@ -39,13 +39,26 @@ This **monorepo** contains everything you need for AI-powered log analysis:
 
 **[→ Integration Guide](docs/NEUROLINK-INTEGRATION.md)** | **[→ Usage Guide](docs/NEUROLINK-USAGE.md)**
 
-### 4️⃣ Rust Backend (Legacy - For Local Use)
+### 4️⃣ Rust Backend (For Local/Self-Hosted Use)
 **Location:** `backend/`
-- 🦀 High-performance Rust API server (OpenAI only)
+- 🦀 High-performance Rust API server
+- 🤖 Multi-provider AI support (OpenAI, Azure OpenAI)
 - 💻 For local development and self-hosting
 - ⚠️ Note: Not used in Vercel deployment
 
 **[→ Setup Guide](docs/AI-BOT-SETUP.md)** | **[→ Rust Explained](docs/RUST-BACKEND-EXPLAINED.md)**
+
+## 🤖 AI Provider Configuration
+
+Zeteo supports multiple AI providers for flexibility and cost optimization:
+
+- **OpenAI** - Direct API access, latest models
+- **Azure OpenAI** - Enterprise-grade with compliance
+- **Google Gemini** - Cost-effective (TypeScript API only)
+- **Anthropic Claude** - Long context, strong reasoning (TypeScript API only)
+- **More providers** - Via Neurolink SDK (TypeScript API)
+
+**[→ Complete Provider Configuration Guide](docs/MODEL-PROVIDERS.md)**
 
 ## 🚀 Quick Start
 
