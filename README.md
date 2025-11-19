@@ -1,4 +1,6 @@
-# logs-explorer
+# Zeteo
+
+> **ζητέω (zeteo)** - Greek verb meaning "to seek, search for, investigate"
 
 AI-powered log exploration and analysis platform with Neurolink integration. Supercharge your log searching with natural language queries and intelligent insights powered by 100+ AI models across 12+ providers.
 
@@ -17,7 +19,7 @@ This **monorepo** contains everything you need for AI-powered log analysis:
 - 🔍 Natural language log querying
 - 📦 One-click Vercel deployment
 
-**[→ Deployment Guide](VERCEL-DEPLOYMENT.md)**
+**[→ Deployment Guide](docs/VERCEL-DEPLOYMENT.md)**
 
 ### 2️⃣ MCP Server Integration
 **Location:** Documentation files in `docs/`
@@ -37,13 +39,26 @@ This **monorepo** contains everything you need for AI-powered log analysis:
 
 **[→ Integration Guide](docs/NEUROLINK-INTEGRATION.md)** | **[→ Usage Guide](docs/NEUROLINK-USAGE.md)**
 
-### 4️⃣ Rust Backend (Legacy - For Local Use)
+### 4️⃣ Rust Backend (For Local/Self-Hosted Use)
 **Location:** `backend/`
-- 🦀 High-performance Rust API server (OpenAI only)
+- 🦀 High-performance Rust API server
+- 🤖 Multi-provider AI support (OpenAI, Azure OpenAI)
 - 💻 For local development and self-hosting
 - ⚠️ Note: Not used in Vercel deployment
 
 **[→ Setup Guide](docs/AI-BOT-SETUP.md)** | **[→ Rust Explained](docs/RUST-BACKEND-EXPLAINED.md)**
+
+## 🤖 AI Provider Configuration
+
+Zeteo supports multiple AI providers for flexibility and cost optimization:
+
+- **OpenAI** - Direct API access, latest models
+- **Azure OpenAI** - Enterprise-grade with compliance
+- **Google Gemini** - Cost-effective (TypeScript API only)
+- **Anthropic Claude** - Long context, strong reasoning (TypeScript API only)
+- **More providers** - Via Neurolink SDK (TypeScript API)
+
+**[→ Complete Provider Configuration Guide](docs/MODEL-PROVIDERS.md)**
 
 ## 🚀 Quick Start
 
@@ -72,7 +87,7 @@ AI_MODEL=gpt-4o-mini
 ```bash
 # 1. Clone and install
 git clone https://github.com/adarshba/logs-explorer.git
-cd logs-explorer
+cd zeteo
 
 # 2. Install dependencies
 npm install
@@ -112,7 +127,7 @@ npm install @juspay/neurolink
 ## 📁 Repository Structure
 
 ```
-logs-explorer/                    # 🏠 Monorepo root
+zeteo/                            # 🏠 Monorepo root
 ├── api/                         # ⚡ Vercel serverless functions
 │   ├── query.ts                # Query parsing with Neurolink
 │   ├── analyze.ts              # Log analysis (streaming)
