@@ -2,8 +2,7 @@
 	import { onMount } from 'svelte';
 
 	let currentLine = $state(0);
-	let typedText = $state('');
-	let isTyping = $state(false);
+	const maxLines = 14;
 
 	const lines = [
 		{ type: 'prompt', text: 'zeteo' },
@@ -38,10 +37,14 @@ architectures.` },
 		{ type: 'cursor', text: '' }
 	];
 
+	const visibleLines = $derived(lines.slice(0, currentLine + 1));
+
 	onMount(() => {
 		const timer = setInterval(() => {
 			if (currentLine < lines.length - 1) {
 				currentLine++;
+			} else {
+				clearInterval(timer);
 			}
 		}, 400);
 
@@ -49,9 +52,9 @@ architectures.` },
 	});
 </script>
 
-<div class="terminal">
+<div class="terminal" role="img" aria-label="Terminal demonstration showing Zeteo CLI in action">
 	<div class="terminal-header">
-		<div class="terminal-buttons">
+		<div class="terminal-buttons" aria-hidden="true">
 			<span class="btn-close"></span>
 			<span class="btn-minimize"></span>
 			<span class="btn-maximize"></span>
@@ -59,7 +62,7 @@ architectures.` },
 		<span class="terminal-title">zeteo — bash</span>
 	</div>
 	<div class="terminal-body">
-		{#each lines.slice(0, currentLine + 1) as line, i}
+		{#each visibleLines as line, i}
 			<div class="line {line.type}" class:animate={i === currentLine}>
 				{#if line.type === 'prompt'}
 					<span class="prompt-text">{line.text}</span>

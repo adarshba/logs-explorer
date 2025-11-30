@@ -4,44 +4,62 @@
 	import Terminal from '$lib/components/Terminal.svelte';
 	import FeatureCard from '$lib/components/FeatureCard.svelte';
 
+	let installSection: HTMLElement;
+	let copyFeedback = $state('');
+
+	async function copyToClipboard(text: string, label: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			copyFeedback = label;
+			setTimeout(() => { copyFeedback = ''; }, 2000);
+		} catch {
+			copyFeedback = 'Failed to copy';
+			setTimeout(() => { copyFeedback = ''; }, 2000);
+		}
+	}
+
+	function scrollToInstall() {
+		installSection?.scrollIntoView({ behavior: 'smooth' });
+	}
+
 	const features = [
 		{
-			icon: '🤖',
+			icon: 'chat',
 			title: 'AI-Powered Chat',
 			description: 'Chat with AI directly in your terminal. Supports OpenAI, Google, Azure, and Vertex AI.'
 		},
 		{
-			icon: '📊',
+			icon: 'logs',
 			title: 'Log Analysis',
 			description: 'Query and analyze OTEL logs from Elasticsearch, OpenObserve, and Kibana with natural language.'
 		},
 		{
-			icon: '🎨',
+			icon: 'terminal',
 			title: 'Beautiful TUI',
 			description: 'Stunning terminal interface with syntax highlighting, rich formatting, and intuitive navigation.'
 		},
 		{
-			icon: '⚡',
+			icon: 'bolt',
 			title: 'Lightning Fast',
 			description: 'Built with Rust for blazing performance. Zero latency, instant responses.'
 		},
 		{
-			icon: '🔌',
+			icon: 'connect',
 			title: 'Multi-Backend',
 			description: 'Connect to multiple log backends simultaneously. Switch between them seamlessly.'
 		},
 		{
-			icon: '💾',
+			icon: 'export',
 			title: 'Session Export',
 			description: 'Export your conversations to JSON or CSV. Share insights with your team.'
 		}
 	];
 
 	const providers = [
-		{ name: 'OpenAI', icon: '🟢' },
-		{ name: 'Google AI', icon: '🔵' },
-		{ name: 'Azure', icon: '🟣' },
-		{ name: 'Vertex AI', icon: '🟠' }
+		{ name: 'OpenAI' },
+		{ name: 'Google AI' },
+		{ name: 'Azure' },
+		{ name: 'Vertex AI' }
 	];
 </script>
 
@@ -81,7 +99,7 @@
 				All from the comfort of your command line.
 			</p>
 			<div class="hero-cta">
-				<Button onclick={() => document.getElementById('install')?.scrollIntoView({ behavior: 'smooth' })}>
+				<Button onclick={scrollToInstall}>
 					Get Started
 				</Button>
 				<a href="#demo" class="hero-link">See it in action →</a>
@@ -90,7 +108,7 @@
 				<span class="providers-label">Supports</span>
 				<div class="providers-list">
 					{#each providers as provider}
-						<span class="provider-badge">{provider.icon} {provider.name}</span>
+						<span class="provider-badge">{provider.name}</span>
 					{/each}
 				</div>
 			</div>
@@ -117,12 +135,15 @@
 		</div>
 	</section>
 
-	<section id="install" class="install-section">
+	<section id="install" class="install-section" bind:this={installSection}>
 		<div class="section-content">
 			<div class="section-header">
 				<h2 class="section-title">Ready to start?</h2>
 				<p class="section-subtitle">Install Zeteo with a single command.</p>
 			</div>
+			{#if copyFeedback}
+				<div class="copy-toast" role="status" aria-live="polite">{copyFeedback}</div>
+			{/if}
 			<div class="install-card">
 				<div class="install-step">
 					<span class="step-number">1</span>
@@ -130,8 +151,8 @@
 						<h3>Install with Cargo</h3>
 						<div class="code-block">
 							<code>cargo install --git https://github.com/adarshba/zeteo-cli</code>
-							<button class="copy-btn" aria-label="Copy install command" onclick={() => navigator.clipboard.writeText('cargo install --git https://github.com/adarshba/zeteo-cli')}>
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<button class="copy-btn" aria-label="Copy install command" onclick={() => copyToClipboard('cargo install --git https://github.com/adarshba/zeteo-cli', 'Copied install command')}>
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
 									<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
 									<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
 								</svg>
@@ -145,8 +166,8 @@
 						<h3>Set your API key</h3>
 						<div class="code-block">
 							<code>export OPENAI_API_KEY="sk-..."</code>
-							<button class="copy-btn" aria-label="Copy API key command" onclick={() => navigator.clipboard.writeText('export OPENAI_API_KEY="sk-..."')}>
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<button class="copy-btn" aria-label="Copy API key command" onclick={() => copyToClipboard('export OPENAI_API_KEY="sk-..."', 'Copied API key command')}>
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
 									<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
 									<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
 								</svg>
@@ -160,8 +181,8 @@
 						<h3>Launch Zeteo</h3>
 						<div class="code-block">
 							<code>zeteo</code>
-							<button class="copy-btn" aria-label="Copy launch command" onclick={() => navigator.clipboard.writeText('zeteo')}>
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<button class="copy-btn" aria-label="Copy launch command" onclick={() => copyToClipboard('zeteo', 'Copied launch command')}>
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
 									<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
 									<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
 								</svg>
@@ -416,6 +437,22 @@
 	.install-section {
 		padding: 120px 24px;
 		background: var(--bg-secondary);
+		position: relative;
+	}
+
+	.copy-toast {
+		position: fixed;
+		bottom: 24px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: var(--fg);
+		color: var(--bg);
+		padding: 12px 24px;
+		border-radius: var(--radius);
+		font-size: 14px;
+		font-weight: 500;
+		z-index: 1000;
+		animation: slideUp 0.3s ease;
 	}
 
 	.install-card {
