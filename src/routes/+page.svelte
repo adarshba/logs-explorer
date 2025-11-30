@@ -5,11 +5,12 @@
 	import Button from '$lib/components/Button.svelte';
 
 	let searchQuery = $state('');
+	let searched = $state(false);
 
 	function handleSearch(e: Event) {
 		e.preventDefault();
 		if (searchQuery.trim()) {
-			console.log('Search:', searchQuery);
+			searched = true;
 		}
 	}
 
@@ -72,6 +73,9 @@
 						bind:value={searchQuery}
 					/>
 				</form>
+				{#if searched && searchQuery}
+					<p class="search-hint">No results for "{searchQuery}"</p>
+				{/if}
 			</div>
 		</div>
 
@@ -223,6 +227,13 @@
 	.search-input:focus {
 		border-color: var(--accent);
 		box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+	}
+
+	.search-hint {
+		margin-top: 16px;
+		font-size: 14px;
+		color: var(--fg-secondary);
+		text-align: center;
 	}
 
 	.footer {
